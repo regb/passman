@@ -6,6 +6,13 @@
 
 #Format of password.txt : TAG:USER:PASSWORD:EMAIL:DESC
 
+noxclip=false
+
+if [ "$1" = "--noxclip" ]; then 
+  noxclip=true
+  shift
+fi
+
 passwordfile=passwords.enc
 if [ ! -f "$passwordfile" ]; then 
   echo "Password file not existing. Creating new one ..."
@@ -81,10 +88,14 @@ case $1 in
     line=$(gettag "$2") || die "Could not identify the correct tag !"
     tag=$(echo "$line" | cut -f 1 -d :)
     pass=$(echo "$line" | cut -f 3 -d :)
-    chkcmd xclip "-selection c"
-    echo "$pass" | xclip -selection c
-    sleep 10 && echo "" | xclip -selection c &
-    echo "password for $tag is in clipboard for 10 seconds"
+    if $noxclip; then
+      echo "password for $tag is $pass"
+    else
+      chkcmd xclip "-selection c"
+      echo "$pass" | xclip -selection c
+      sleep 10 && echo "" | xclip -selection c &
+      echo "password for $tag is in clipboard for 10 seconds"
+    fi
     ;;
   tags)
       tags=`echo "$filteredpasswords" | cut -f 1 -d : | sort | tr '\n' ' '`
