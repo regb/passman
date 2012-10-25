@@ -7,13 +7,27 @@
 #Format of password.txt : TAG:USER:PASSWORD:EMAIL:DESC
 
 noxclip=false
-
-if [ "$1" = "--noxclip" ]; then 
-  noxclip=true
-  shift
-fi
-
 passwordfile=passwords.enc
+
+#process options
+cont=true
+while $cont
+do
+  case "$1" in
+    --noxclip)
+      noxclip=true
+      shift
+      ;;
+    --file=*)
+      passwordfile="$(echo "$1" | sed -re 's/--file=(.*)/\1/')"
+      shift
+      ;;
+    *)
+      cont=false
+      ;;
+  esac
+done
+
 if [ ! -f "$passwordfile" ]; then 
   echo "Password file not existing. Creating new one ..."
   touch "$passwordfile"
