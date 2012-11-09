@@ -101,14 +101,19 @@ case $1 in
   get)
     line=$(gettag "$2") || die "Could not identify the correct tag !"
     tag=$(echo "$line" | cut -f 1 -d :)
+    login=$(echo "$line" | cut -f 2 -d :)
     pass=$(echo "$line" | cut -f 3 -d :)
     if $noxclip; then
-      echo "password for $tag is $pass"
+      echo "Data for $tag:"
+      echo "login: $login"
+      echo "password: $pass"
     else
       chkcmd xclip "-selection c"
       echo "$pass" | xclip -selection c
       sleep 10 && echo "" | xclip -selection c &
-      echo "password for $tag is in clipboard for 10 seconds"
+      echo "Data for $tag:"
+      echo "login: $login"
+      echo "password: in clipboard for 10 seconds"
     fi
     ;;
   tags)
