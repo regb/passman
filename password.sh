@@ -59,7 +59,7 @@ ldpasswd() {
     fi
   fi
   #this ignores comments and empty lines
-  FILTEREDPASSWORDS=`echo "$passwords" | grep -v "^#" | grep -v "^$"`
+  FILTEREDPASSWORDS=`echo "$PASSWORDS" | grep -v "^#" | grep -v "^$"`
 }
 
 #exit with an error message
@@ -94,24 +94,29 @@ gettag () {
   fi
 
   tags=`echo "$FILTEREDPASSWORDS" | cut -f 1 -d : | grep "$tag"`
-  nb=`echo "$tags" | wc -l`
-  if [ $nb -eq 0 ] || [ "X$tags" = "X" ] ; then
-    echo "No password corresponding to $tag" 1>&2
-    exit 1
-  elif [ $nb -gt 1 ]; then
-    if ! echo "$tags" | grep ":${tag}$" -q; then
-      echo "Ambiguous tag, you need to provide a better matching. Potential tags are:" 1>&2
-      for t in $tags; do
-        printf "\t$t\n" 1>&2
-      done
+  #try to do an exact matching
+  completetag=$(printf "$tags" | grep "^$tag$")
+  if [ $? -ne 0 ]; then
+    nb=`echo "$tags" | wc -l`
+    if [ $nb -eq 0 ] || [ "X$tags" = "X" ] ; then
+      echo "No password corresponding to $tag" 1>&2
       exit 1
+    elif [ $nb -gt 1 ]; then
+      if ! echo "$tags" | grep ":${tag}$" -q; then
+        echo "Ambiguous tag, you need to provide a better matching. Potential tags are:" 1>&2
+        for t in $tags; do
+          printf "\t$t\n" 1>&2
+        done
+        exit 1
+      fi
+      tags=$(echo "$tags" | grep ":${tag}$")
+    else
+      #then $tags only contains one tag
+      completetag=$tags
     fi
-    tags=$(echo "$tags" | grep ":${tag}$")
   fi
 
-  #assume tags contains only the correct tag
-  tag=$tags
-  echo $(echo "$FILTEREDPASSWORDS" | grep "^${tag}:")
+  echo $(echo "$FILTEREDPASSWORDS" | grep "^${completetag}:")
   return 0
 }
 
@@ -186,7 +191,7 @@ case $1 in
     ;;
   print)
     ldpasswd
-    printf $PASSWORDS
+    printf "$PASSWORDS"
     ;;
   help)
     printhelp
