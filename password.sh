@@ -48,6 +48,8 @@ ldpasswd() {
     echo "Password file not existing. Creating new one ..."
     touch "$PASSWORDFILE"
     PASSWORDS=""
+  elif [ ! -s "$PASSWORDFILE" ]; then 
+    PASSWORDS=""
   else
     #decrypt and store content in variable passwords
     PASSWORDS=$(openssl aes-256-cbc -d -in $PASSWORDFILE 2> /dev/null)
@@ -181,6 +183,10 @@ case $1 in
     line=$(gettag "$2") || die "Could not identify the correct tag !"
     passwords=$(echo "$PASSWORDS" | grep "$line" -v)
     stpasswd "$passwords"
+    ;;
+  print)
+    ldpasswd
+    printf $PASSWORDS
     ;;
   help)
     printhelp
