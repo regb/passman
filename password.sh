@@ -150,6 +150,7 @@ case $1 in
   set) #set only works with an exact matching of tag
     ldpasswd
     tag="$2"
+    printf "New password: "
     stty -echo
     read newpass
     stty echo
