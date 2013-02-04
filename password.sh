@@ -1,13 +1,24 @@
 #!/bin/sh
 
-#WARNING: passing content of passwords file as argument to cmd is not actually 100% safe
-# Well, it will still be safer than decrypting the file and storing
-# it on the disk
+#WARNING: 
+#passing content of passwords file as argument to cmd is 
+#not actually 100% safe
+#But, it will still be safer than decrypting the file and storing
+#it on the disk anyway
+#Notice however that the master password is never saved ! We let openssl
+#handle that password at all time. 
 
 #Format of password.txt : TAG:USER:PASSWORD:EMAIL:DESC
 
-noxclip=false
-passwordfile=passwords.enc
+printhelp() {
+  echo "TODO"
+}
+
+#options: 
+# -noxclip desactivates the usage of xclip and will print the password on STDOUT
+# -file=PATH is the PATH to the encrypted file containing passwords
+NOXCLIP=false
+PASSWORDFILE=passwords.dat
 
 #process options
 cont=true
@@ -15,11 +26,11 @@ while $cont
 do
   case "$1" in
     --noxclip)
-      noxclip=true
+      NOXCLIP=true
       shift
       ;;
     --file=*)
-      passwordfile="$(echo "$1" | sed -re 's/--file=(.*)/\1/')"
+      PASSWORDFILE="$(echo "$1" | sed -re 's/--file=(.*)/\1/')"
       shift
       ;;
     *)
@@ -28,40 +39,45 @@ do
   esac
 done
 
-if [ ! -f "$passwordfile" ]; then 
-  echo "Password file not existing. Creating new one ..."
-  touch "$passwordfile"
-  passwords=""
-else
-  #decrypt and store content in variable passwords
-  passwords=$(openssl aes-256-cbc -d -in $passwordfile 2> /dev/null)
-  if [ $? -ne 0 ]; then
-    echo "Could not decrypt password file!"
-    exit 1
+#load passwords in variable PASSWORDS and FILTEREDPASSWORDS
+#PASSWORDS contains the exact content, while FILTEREDPASSWORDS
+#only has the lines with fields. PASSWORDS is used to keep
+#comments and other manually added information if necessary.
+ldpasswd() {
+  if [ ! -f "$passwordfile" ]; then 
+    echo "Password file not existing. Creating new one ..."
+    touch "$passwordfile"
+    PASSWORDS=""
+  else
+    #decrypt and store content in variable passwords
+    PASSWORDS=$(openssl aes-256-cbc -d -in $passwordfile 2> /dev/null)
+    if [ $? -ne 0 ]; then
+      echo "Could not decrypt password file!"
+      exit 1
+    fi
   fi
-fi
+  #this ignores comments and empty lines
+  FILTEREDPASSWORDS=`echo "$passwords" | grep -v "^#" | grep -v "^$"`
+}
 
-#this ignores comments and empty lines
-filteredpasswords=`echo "$passwords" | grep -v "^#" | grep -v "^$"`
-
+#exit with an error message
 die () {
   echo "$1" 1>&2
   exit 1
 }
 
+#check if command exists and can be run
 chkcmd () {
-
   cmd="$1"
   args="$2"
 
   if ! $cmd $args < /dev/null > /dev/null 2>&1; then
-    echo "Could not succesfully run $cmd !"
-    echo "You probably need to install it ..."
-    exit 1
+    die "Could not succesfully run $cmd !"
   fi
   return 0
 }
 
+#store the new content of password in $passwordfile
 stpasswd () {
   printf "$1" | openssl aes-256-cbc -salt -out "$passwordfile"
   return 0
@@ -75,7 +91,7 @@ gettag () {
     exit 1
   fi
 
-  tags=`echo "$filteredpasswords" | cut -f 1 -d : | grep "$tag"`
+  tags=`echo "$FILTEREDPASSWORDS" | cut -f 1 -d : | grep "$tag"`
   nb=`echo "$tags" | wc -l`
   if [ $nb -eq 0 ] || [ "X$tags" = "X" ] ; then
     echo "No password corresponding to $tag" 1>&2
@@ -93,12 +109,14 @@ gettag () {
 
   #assume tags contains only the correct tag
   tag=$tags
-  echo $(echo "$filteredpasswords" | grep "^${tag}:")
+  echo $(echo "$FILTEREDPASSWORDS" | grep "^${tag}:")
   return 0
 }
 
+#Main
 case $1 in
   get)
+    ldpasswd
     line=$(gettag "$2") || die "Could not identify the correct tag !"
     tag=$(echo "$line" | cut -f 1 -d :)
     login=$(echo "$line" | cut -f 2 -d :)
@@ -117,51 +135,57 @@ case $1 in
     fi
     ;;
   tags)
-      tags=`echo "$filteredpasswords" | cut -f 1 -d : | sort | tr '\n' ' '`
-      printf "The following tags are present:\n"
-      for tag in $tags; do printf "\t$tag\n"; done
+    ldpasswd
+    tags=`echo "$FILTEREDPASSWORDS" | cut -f 1 -d : | sort | tr '\n' ' '`
+    printf "The following tags are present:\n"
+    for tag in $tags; do printf "\t$tag\n"; done
     ;;
-  set)
-      tag="$2"
-      stty -echo
-      read newpass
-      stty echo
-      passwords=`echo "$filteredpasswords" | awk -F: -v "tag=$tag" -v "newpass=$newpass" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, newpass, $4, $5} $1 != tag {print $0}'`
-      stpasswd "$passwords"
-    ;;
-  add)
-    printf "tag: "
-    read tag
-    printf "username: "
-    read user
-    printf "email: "
-    read email
+  set) #set only works with an exact matching of tag
+    ldpasswd
+    tag="$2"
     stty -echo
-    printf "password: "
-    read password
-    printf "\n"
+    read newpass
     stty echo
-    newentry="$tag:$user:$password:$email:"
-    passwords="$passwords\n$newentry"
+    passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newpass=$newpass" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, newpass, $4, $5} $1 != tag {print $0}'`
     stpasswd "$passwords"
     ;;
-  add-random)
+  add | add-random)
+    ldpasswd
     printf "tag: "
     read tag
+    tags=`echo "$FILTEREDPASSWORDS" | cut -f 1 -d : | grep "$tag"`
+    echo $tags | grep "$tag" -q && die "Tag already in use"
     printf "username: "
     read user
     printf "email: "
     read email
-    chkcmd pwgen "12 -s"
-    password=`pwgen 12 -s`
+    case "$1" in
+      add)
+        stty -echo
+        printf "password: "
+        read password
+        printf "\n"
+        stty echo
+        ;;
+      add-random)
+        chkcmd pwgen "12 -s"
+        password=`pwgen 12 -s`
+        ;;
+    esac
     newentry="$tag:$user:$password:$email:"
-    passwords="$passwords\n$newentry"
+    passwords="$PASSWORDS\n$newentry"
     stpasswd "$passwords"
     ;;
   delete)
+    ldpasswd
     line=$(gettag "$2") || die "Could not identify the correct tag !"
-    passwords=$(echo "$passwords" | grep "$line" -v)
+    passwords=$(echo "$PASSWORDS" | grep "$line" -v)
     stpasswd "$passwords"
     ;;
-
+  help)
+    printhelp
+    ;;
+  *)
+    die "Unknown command: $1"
+    ;;
 esac
