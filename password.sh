@@ -44,13 +44,13 @@ done
 #only has the lines with fields. PASSWORDS is used to keep
 #comments and other manually added information if necessary.
 ldpasswd() {
-  if [ ! -f "$passwordfile" ]; then 
+  if [ ! -f "$PASSWORDFILE" ]; then 
     echo "Password file not existing. Creating new one ..."
-    touch "$passwordfile"
+    touch "$PASSWORDFILE"
     PASSWORDS=""
   else
     #decrypt and store content in variable passwords
-    PASSWORDS=$(openssl aes-256-cbc -d -in $passwordfile 2> /dev/null)
+    PASSWORDS=$(openssl aes-256-cbc -d -in $PASSWORDFILE 2> /dev/null)
     if [ $? -ne 0 ]; then
       echo "Could not decrypt password file!"
       exit 1
@@ -77,9 +77,9 @@ chkcmd () {
   return 0
 }
 
-#store the new content of password in $passwordfile
+#store the new content of password in $PASSWORDFILE
 stpasswd () {
-  printf "$1" | openssl aes-256-cbc -salt -out "$passwordfile"
+  printf "$1" | openssl aes-256-cbc -salt -out "$PASSWORDFILE"
   return 0
 }
 
@@ -121,7 +121,7 @@ case $1 in
     tag=$(echo "$line" | cut -f 1 -d :)
     login=$(echo "$line" | cut -f 2 -d :)
     pass=$(echo "$line" | cut -f 3 -d :)
-    if $noxclip; then
+    if $NOXCLIP; then
       echo "Data for $tag:"
       echo "login: $login"
       echo "password: $pass"
