@@ -157,6 +157,14 @@ case $1 in
     passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newpass=$newpass" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, newpass, $4, $5} $1 != tag {print $0}'`
     stpasswd "$passwords"
     ;;
+  set-random)
+    ldpasswd
+    tag="$2"
+    chkcmd pwgen "12 -s"
+    newpass=`pwgen 12 -s`
+    passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newpass=$newpass" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, newpass, $4, $5} $1 != tag {print $0}'`
+    stpasswd "$passwords"
+    ;;
   add | add-random)
     ldpasswd
     printf "tag: "
