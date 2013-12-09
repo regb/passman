@@ -128,17 +128,20 @@ case $1 in
     tag=$(echo "$line" | cut -f 1 -d :)
     login=$(echo "$line" | cut -f 2 -d :)
     pass=$(echo "$line" | cut -f 3 -d :)
+    email=$(echo "$line" | cut -f 4 -d :)
     if $NOXCLIP; then
       echo "Data for $tag:"
       echo "login: $login"
       echo "password: $pass"
+      echo "email: $email"
     else
       chkcmd xclip "-selection c"
       echo "$pass" | xclip -selection c
       sleep 10 && echo "" | xclip -selection c &
       echo "Data for $tag:"
       echo "login: $login"
-      echo "password: in clipboard for 10 seconds"
+      echo "password: <in clipboard for 10 seconds>"
+      echo "email: $email"
     fi
     ;;
   tags)
@@ -163,6 +166,22 @@ case $1 in
     chkcmd pwgen "12 -s"
     newpass=`pwgen 12 -s`
     passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newpass=$newpass" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, newpass, $4, $5} $1 != tag {print $0}'`
+    stpasswd "$passwords"
+    ;;
+  set-email)
+    ldpasswd
+    tag="$2"
+    printf "New email: "
+    read newemail
+    passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newemail=$newemail" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, $2, $3, newemail, $5} $1 != tag {print $0}'`
+    stpasswd "$passwords"
+    ;;
+  set-username)
+    ldpasswd
+    tag="$2"
+    printf "New username: "
+    read newuser
+    passwords=`echo "$PASSWORDS" | awk -F: -v "tag=$tag" -v "newuser=$newuser" '$1 == tag {printf "%s:%s:%s:%s:%s\n", $1, newuser, $3, $4, $5} $1 != tag {print $0}'`
     stpasswd "$passwords"
     ;;
   add | add-random)
