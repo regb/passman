@@ -9,6 +9,10 @@ Introduction
 
 Store passwords in an encrypted file (by default "passwords.dat" in the current
 working directory). If the file does not exist it will create an empty one.
+The data file is protected by a password. This will work as your master password
+and is the only password you will need to remember. The underlying implementation
+is done by `openssl` and PassMan works as a lightweight interface on top to
+simplify the management of password files.
 
 Each password is associated with a tag, and the script provides commands to
 add/remove/edit a tag.
